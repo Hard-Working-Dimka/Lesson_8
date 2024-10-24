@@ -29,67 +29,57 @@ def get_distance(data_of_coffee_shops):
     return data_of_coffee_shops['distance']
 
 
-def map():
+def load_map():
     with open('index.html', "r", encoding='UTF-8') as file:
         return file.read()
 
 
-load_dotenv()
-apikey = os.getenv('GEOCODER_API_KEY')
+def load_coffee_shops(filepath):
+    with open(f'{filepath}', "r", encoding='CP1251') as file:
+        return json.loads(file.read())
 
-with open('coffee.json', "r", encoding='CP1251') as coffe_shops_file:
-    coffe_shops_content = coffe_shops_file.read()
-coffe_shops = json.loads(coffe_shops_content)
 
-place_of_user = input('Где вы находитесь? ', )
-coordinates_of_user = fetch_coordinates(apikey, place_of_user)
+def main():
+    load_dotenv()
+    apikey = os.getenv('GEOCODER_API_KEY')
 
-treated_coffee_shops = []
-for coffe_shop in coffe_shops:
-    treated_coffee_shops.append({
-        'title': coffe_shop['Name'],
-        'distance': distance(lonlat(*coordinates_of_user), lonlat(*coffe_shop['geoData']['coordinates'])).km,
-        'latitude': coffe_shop['geoData']['coordinates'][1],
-        'longitude': coffe_shop['geoData']['coordinates'][0],
-    })
+    coffe_shops = load_coffee_shops('coffee.json')
 
-nearest_coffee_shops = (sorted(treated_coffee_shops, key=get_distance)[:5])
-m = folium.Map((coordinates_of_user[1], coordinates_of_user[0]), zoom_start=15)
+    place_of_user = input('Где вы находитесь? ', )
+    coordinates_of_user = fetch_coordinates(apikey, place_of_user)
 
-group_1 = folium.FeatureGroup("coffe_shops").add_to(m)
+    treated_coffee_shops = []
+    for coffe_shop in coffe_shops:
+        treated_coffee_shops.append({
+            'title': coffe_shop['Name'],
+            'distance': distance(lonlat(*coordinates_of_user), lonlat(*coffe_shop['geoData']['coordinates'])).km,
+            'latitude': coffe_shop['geoData']['coordinates'][1],
+            'longitude': coffe_shop['geoData']['coordinates'][0],
+        })
 
-folium.Marker(
-    location=[nearest_coffee_shops[0]['latitude'], nearest_coffee_shops[0]['longitude']],
-    icon=folium.Icon("red"),
-    popup=nearest_coffee_shops[0]['title'],
-).add_to(group_1)
+    nearest_coffee_shops = (sorted(treated_coffee_shops, key=get_distance)[:5])
+    m = folium.Map((coordinates_of_user[1], coordinates_of_user[0]), zoom_start=15)
 
-folium.Marker(
-    location=[nearest_coffee_shops[1]['latitude'], nearest_coffee_shops[1]['longitude']],
-    icon=folium.Icon("red"),
-    popup=nearest_coffee_shops[1]['title'],
-).add_to(group_1)
+    folium.Marker(
+        location=[coordinates_of_user[1], coordinates_of_user[0]],
+        icon=folium.Icon(color="green", icon='hand-peace',prefix= 'fa',icon_color='black'),
+        popup='I\'m here!',
+    ).add_to(m)
 
-folium.Marker(
-    location=[nearest_coffee_shops[2]['latitude'], nearest_coffee_shops[2]['longitude']],
-    icon=folium.Icon("red"),
-    popup=nearest_coffee_shops[2]['title'],
-).add_to(group_1)
+    group_1 = folium.FeatureGroup("coffe_shops").add_to(m)
+    for coffee_shop in nearest_coffee_shops:
+        folium.Marker(
+            location=[coffee_shop['latitude'], coffee_shop['longitude']],
+            icon=folium.Icon(color="blue", icon='coffee',prefix= 'fa',icon_color='black'),
+            popup=coffee_shop['title'],
+        ).add_to(group_1)
 
-folium.Marker(
-    location=[nearest_coffee_shops[3]['latitude'], nearest_coffee_shops[3]['longitude']],
-    icon=folium.Icon("red"),
-    popup=nearest_coffee_shops[3]['title'],
-).add_to(group_1)
+    m.save("index.html")
 
-folium.Marker(
-    location=[nearest_coffee_shops[4]['latitude'], nearest_coffee_shops[4]['longitude']],
-    icon=folium.Icon("red"),
-    popup=nearest_coffee_shops[4]['title'],
-).add_to(group_1)
+    app = Flask(__name__)
+    app.add_url_rule('/', 'Coffee shops', load_map)
+    app.run('0.0.0.0')
 
-m.save("index.html")
 
-app = Flask(__name__)
-app.add_url_rule('/', 'Coffee shops', map)
-app.run('0.0.0.0')
+if __name__ == '__main__':
+    main()
